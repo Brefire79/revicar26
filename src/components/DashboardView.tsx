@@ -35,6 +35,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onGeneratePdf,
   onNavigateTab,
 }) => {
+  const hasHistory = logs.length > 0;
   const criticalReminders = reminders.filter((r) => {
     const kmLeft = r.targetKm - vehicle.currentOdometer;
     return kmLeft <= 1000 || r.urgency === 'critical';
@@ -63,13 +64,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Passaporte de Revenda Ativo</span>
+              <span>{hasHistory ? 'Passaporte de Revenda Ativo' : 'Passaporte em construção'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
               {vehicle.make} {vehicle.model}
             </h1>
             <p className="text-slate-400 text-sm leading-relaxed">
-              Manutenções preventivas em dia, registros de peças com nota fiscal e projeção de custos calibrada por IA com base em <strong className="text-slate-200">~{vehicle.averageDailyKm} km/dia</strong>.
+              {hasHistory
+                ? <>Histórico em construção com projeção de custos baseada em <strong className="text-slate-200">~{vehicle.averageDailyKm} km/dia</strong>.</>
+                : <>Comece registrando as revisões e peças reais deste veículo. Nenhum dado fictício será incluído.</>}
             </p>
             
             <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -103,14 +106,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   stroke="currentColor"
                   strokeWidth="7"
                   strokeDasharray={2 * Math.PI * 34}
-                  strokeDashoffset={2 * Math.PI * 34 * (1 - vehicle.resaleScore / 100)}
+                  strokeDashoffset={2 * Math.PI * 34 * (1 - (hasHistory ? vehicle.resaleScore : 0) / 100)}
                   className="text-emerald-400 transition-all duration-1000"
                   strokeLinecap="round"
                   fill="transparent"
                 />
               </svg>
               <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-xl font-extrabold text-slate-100">{vehicle.resaleScore}</span>
+                <span className="text-xl font-extrabold text-slate-100">{hasHistory ? vehicle.resaleScore : '--'}</span>
                 <span className="text-[9px] font-semibold text-emerald-400 uppercase">Score</span>
               </div>
             </div>
@@ -119,7 +122,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 Índice de Revenda
               </span>
               <p className="text-xs text-slate-300 font-medium leading-tight">
-                Excelente histórico. Peças originais e revisões em dia agregam até <strong className="text-emerald-400">+12% no preço</strong>.
+                {hasHistory
+                  ? 'Índice calculado a partir dos registros adicionados.'
+                  : 'Adicione manutenções comprovadas para construir o índice.'}
               </p>
             </div>
           </div>
@@ -159,7 +164,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Wrench className="w-4 h-4 text-blue-400" />
           </div>
           <div className="text-2xl font-black text-slate-100">{logs.length} <span className="text-xs font-normal text-slate-400">Revisões</span></div>
-          <p className="text-[11px] text-slate-400">Todas com nota fiscal ou comprovante</p>
+          <p className="text-[11px] text-slate-400">Registros adicionados ao veículo</p>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
@@ -168,7 +173,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Package className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-black text-slate-100">{totalParts} <span className="text-xs font-normal text-slate-400">Peças</span></div>
-          <p className="text-[11px] text-slate-400">Marcas Bosch, Michelin, Honda e OEM</p>
+          <p className="text-[11px] text-slate-400">Peças e marcas cadastradas por você</p>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
@@ -186,7 +191,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <TrendingUp className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl font-black text-slate-100">R$ {projectedCost6m.toLocaleString('pt-BR')}</div>
-          <p className="text-[11px] text-slate-400">Aproximado para os próximos 6.300 km</p>
+          <p className="text-[11px] text-slate-400">Aproximado para os próximos {(vehicle.averageDailyKm * 180).toLocaleString('pt-BR')} km</p>
         </div>
       </div>
 
