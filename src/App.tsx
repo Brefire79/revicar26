@@ -81,20 +81,20 @@ export default function App() {
 
   // Initialize Firebase Auth & Real-Time Listeners (Spark Free Tier)
   useEffect(() => {
-    initFirebaseAuth(() => {
+    const dataUnsubscribers: Array<() => void> = [];
+    const unsubscribeAuth = initFirebaseAuth(() => {
       seedInitialDataToFirestore(vehicle, logs, reminders, sharedUsers);
+      dataUnsubscribers.push(
+        subscribeVehicleFromFirestore((v) => setVehicle(v)),
+        subscribeLogsFromFirestore((l) => setLogs(l)),
+        subscribeRemindersFromFirestore((r) => setReminders(r)),
+        subscribeSharedUsersFromFirestore((u) => setSharedUsers(u)),
+      );
     });
 
-    const unsubVehicle = subscribeVehicleFromFirestore((v) => setVehicle(v));
-    const unsubLogs = subscribeLogsFromFirestore((l) => setLogs(l));
-    const unsubReminders = subscribeRemindersFromFirestore((r) => setReminders(r));
-    const unsubShared = subscribeSharedUsersFromFirestore((u) => setSharedUsers(u));
-
     return () => {
-      unsubVehicle();
-      unsubLogs();
-      unsubReminders();
-      unsubShared();
+      unsubscribeAuth();
+      dataUnsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, []);
 
