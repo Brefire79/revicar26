@@ -45,6 +45,11 @@ export const auth = getAuth(app);
 
 // Keep track of current user
 let currentUser: User | null = null;
+const LEGACY_DEMO_IDS = {
+  logs: ['log-101', 'log-102', 'log-103'],
+  reminders: ['rem-01', 'rem-02', 'rem-03', 'rem-04'],
+  users: ['user-01', 'user-02', 'user-03'],
+};
 
 // Ensure anonymous login for Firebase
 export const initFirebaseAuth = (onUserReady?: (user: User) => void) => {
@@ -73,6 +78,24 @@ const userDoc = () => doc(db, 'users', requireUserId());
 const userCollection = (name: string) => collection(userDoc(), name);
 const userItemDoc = (collectionName: string, id: string) =>
   doc(userDoc(), collectionName, id);
+
+export const removeLegacyDemoDataFromFirestore = async () => {
+  try {
+    const batch = writeBatch(db);
+    LEGACY_DEMO_IDS.logs.forEach((id) => batch.delete(userItemDoc('maintenance_logs', id)));
+    LEGACY_DEMO_IDS.reminders.forEach((id) => batch.delete(userItemDoc('reminders', id)));
+    LEGACY_DEMO_IDS.users.forEach((id) => batch.delete(userItemDoc('shared_users', id)));
+
+    const vehicleRef = userItemDoc('vehicles', VEHICLE_DOC_ID);
+    const vehicleSnap = await getDoc(vehicleRef);
+    if (vehicleSnap.exists() && vehicleSnap.data().id === 'veh-001') {
+      batch.delete(vehicleRef);
+    }
+    await batch.commit();
+  } catch (err) {
+    console.warn('Legacy demo cleanup skipped:', err);
+  }
+};
 
 // Vehicle Persistence
 export const saveVehicleToFirestore = async (vehicle: Vehicle) => {
