@@ -48,16 +48,12 @@ let currentUser: User | null = null;
 
 // Ensure anonymous login for Firebase
 export const initFirebaseAuth = (onUserReady?: (user: User) => void) => {
-  onAuthStateChanged(auth, (user) => {
+  return onAuthStateChanged(auth, (user) => {
     if (user) {
       currentUser = user;
       if (onUserReady) onUserReady(user);
     } else {
       signInAnonymously(auth)
-        .then((cred) => {
-          currentUser = cred.user;
-          if (onUserReady) onUserReady(cred.user);
-        })
         .catch((err) => {
           console.warn('Firebase Auth anonymous login error:', err);
         });
@@ -68,10 +64,20 @@ export const initFirebaseAuth = (onUserReady?: (user: User) => void) => {
 // Firestore Collection References
 const VEHICLE_DOC_ID = 'main-vehicle';
 
+const requireUserId = () => {
+  if (!currentUser) throw new Error('Usuário ainda não autenticado.');
+  return currentUser.uid;
+};
+
+const userDoc = () => doc(db, 'users', requireUserId());
+const userCollection = (name: string) => collection(userDoc(), name);
+const userItemDoc = (collectionName: string, id: string) =>
+  doc(userDoc(), collectionName, id);
+
 // Vehicle Persistence
 export const saveVehicleToFirestore = async (vehicle: Vehicle) => {
   try {
-    const vehicleRef = doc(db, 'vehicles', VEHICLE_DOC_ID);
+    const vehicleRef = userItemDoc('vehicles', VEHICLE_DOC_ID);
     await setDoc(vehicleRef, { ...vehicle, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.warn('Firestore save vehicle error:', err);
@@ -79,7 +85,7 @@ export const saveVehicleToFirestore = async (vehicle: Vehicle) => {
 };
 
 export const subscribeVehicleFromFirestore = (onUpdate: (vehicle: Vehicle) => void) => {
-  const vehicleRef = doc(db, 'vehicles', VEHICLE_DOC_ID);
+  const vehicleRef = userItemDoc('vehicles', VEHICLE_DOC_ID);
   return onSnapshot(vehicleRef, (docSnap) => {
     if (docSnap.exists()) {
       const data = docSnap.data() as Vehicle;
@@ -93,7 +99,7 @@ export const subscribeVehicleFromFirestore = (onUpdate: (vehicle: Vehicle) => vo
 // Logs Persistence
 export const saveLogToFirestore = async (log: MaintenanceLog) => {
   try {
-    const logRef = doc(db, 'maintenance_logs', log.id);
+    const logRef = userItemDoc('maintenance_logs', log.id);
     await setDoc(logRef, { ...log, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.warn('Firestore save log error:', err);
@@ -102,7 +108,7 @@ export const saveLogToFirestore = async (log: MaintenanceLog) => {
 
 export const deleteLogFromFirestore = async (id: string) => {
   try {
-    const logRef = doc(db, 'maintenance_logs', id);
+    const logRef = userItemDoc('maintenance_logs', id);
     await deleteDoc(logRef);
   } catch (err) {
     console.warn('Firestore delete log error:', err);
@@ -110,7 +116,7 @@ export const deleteLogFromFirestore = async (id: string) => {
 };
 
 export const subscribeLogsFromFirestore = (onUpdate: (logs: MaintenanceLog[]) => void) => {
-  const logsCol = collection(db, 'maintenance_logs');
+  const logsCol = userCollection('maintenance_logs');
   return onSnapshot(logsCol, (querySnap) => {
     const logsList: MaintenanceLog[] = [];
     querySnap.forEach((docSnap) => {
@@ -128,7 +134,7 @@ export const subscribeLogsFromFirestore = (onUpdate: (logs: MaintenanceLog[]) =>
 // Reminders Persistence
 export const saveReminderToFirestore = async (rem: ReminderRule) => {
   try {
-    const remRef = doc(db, 'reminders', rem.id);
+    const remRef = userItemDoc('reminders', rem.id);
     await setDoc(remRef, { ...rem, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.warn('Firestore save reminder error:', err);
@@ -139,7 +145,7 @@ export const saveMultipleRemindersToFirestore = async (reminders: ReminderRule[]
   try {
     const batch = writeBatch(db);
     reminders.forEach((rem) => {
-      const remRef = doc(db, 'reminders', rem.id);
+      const remRef = userItemDoc('reminders', rem.id);
       batch.set(remRef, { ...rem, updatedAt: new Date().toISOString() }, { merge: true });
     });
     await batch.commit();
@@ -150,7 +156,7 @@ export const saveMultipleRemindersToFirestore = async (reminders: ReminderRule[]
 
 export const deleteReminderFromFirestore = async (id: string) => {
   try {
-    const remRef = doc(db, 'reminders', id);
+    const remRef = userItemDoc('reminders', id);
     await deleteDoc(remRef);
   } catch (err) {
     console.warn('Firestore delete reminder error:', err);
@@ -158,7 +164,7 @@ export const deleteReminderFromFirestore = async (id: string) => {
 };
 
 export const subscribeRemindersFromFirestore = (onUpdate: (reminders: ReminderRule[]) => void) => {
-  const remindersCol = collection(db, 'reminders');
+  const remindersCol = userCollection('reminders');
   return onSnapshot(remindersCol, (querySnap) => {
     const list: ReminderRule[] = [];
     querySnap.forEach((docSnap) => {
@@ -176,7 +182,7 @@ export const subscribeRemindersFromFirestore = (onUpdate: (reminders: ReminderRu
 // Shared Users Persistence
 export const saveSharedUserToFirestore = async (user: SharedUser) => {
   try {
-    const uRef = doc(db, 'shared_users', user.id);
+    const uRef = userItemDoc('shared_users', user.id);
     await setDoc(uRef, { ...user, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.warn('Firestore save shared user error:', err);
@@ -185,7 +191,7 @@ export const saveSharedUserToFirestore = async (user: SharedUser) => {
 
 export const deleteSharedUserFromFirestore = async (id: string) => {
   try {
-    const uRef = doc(db, 'shared_users', id);
+    const uRef = userItemDoc('shared_users', id);
     await deleteDoc(uRef);
   } catch (err) {
     console.warn('Firestore delete shared user error:', err);
@@ -193,7 +199,7 @@ export const deleteSharedUserFromFirestore = async (id: string) => {
 };
 
 export const subscribeSharedUsersFromFirestore = (onUpdate: (users: SharedUser[]) => void) => {
-  const col = collection(db, 'shared_users');
+  const col = userCollection('shared_users');
   return onSnapshot(col, (querySnap) => {
     const list: SharedUser[] = [];
     querySnap.forEach((docSnap) => {
@@ -215,7 +221,7 @@ export const seedInitialDataToFirestore = async (
   initialSharedUsers: SharedUser[]
 ) => {
   try {
-    const vehicleRef = doc(db, 'vehicles', VEHICLE_DOC_ID);
+    const vehicleRef = userItemDoc('vehicles', VEHICLE_DOC_ID);
     const vehicleSnap = await getDoc(vehicleRef);
 
     if (!vehicleSnap.exists()) {
@@ -223,13 +229,13 @@ export const seedInitialDataToFirestore = async (
       
       const batch = writeBatch(db);
       initialLogs.forEach((log) => {
-        batch.set(doc(db, 'maintenance_logs', log.id), { ...log, createdAt: new Date().toISOString() });
+        batch.set(userItemDoc('maintenance_logs', log.id), { ...log, createdAt: new Date().toISOString() });
       });
       initialReminders.forEach((rem) => {
-        batch.set(doc(db, 'reminders', rem.id), { ...rem, createdAt: new Date().toISOString() });
+        batch.set(userItemDoc('reminders', rem.id), { ...rem, createdAt: new Date().toISOString() });
       });
       initialSharedUsers.forEach((u) => {
-        batch.set(doc(db, 'shared_users', u.id), { ...u, createdAt: new Date().toISOString() });
+        batch.set(userItemDoc('shared_users', u.id), { ...u, createdAt: new Date().toISOString() });
       });
 
       await batch.commit();
