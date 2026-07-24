@@ -11,6 +11,7 @@ import {
   saveSharedUsers,
   getStoredSurvey,
   saveSurvey,
+  hasConfiguredVehicle,
 } from './lib/storage';
 import {
   initFirebaseAuth,
@@ -27,6 +28,7 @@ import {
   deleteReminderFromFirestore,
   saveSharedUserToFirestore,
   deleteSharedUserFromFirestore,
+  removeLegacyDemoDataFromFirestore,
 } from './lib/firebase';
 import { generateVehiclePdfReport } from './lib/pdfGenerator';
 import { Navbar } from './components/Navbar';
@@ -38,9 +40,11 @@ import { SharedAccessView } from './components/SharedAccessView';
 import { PrdArchitectureView } from './components/PrdArchitectureView';
 import { OdometerModal } from './components/OdometerModal';
 import { MaintenanceAlertToast, getDueRemindersAt90Percent } from './components/MaintenanceAlertToast';
+import { VehicleSetupView } from './components/VehicleSetupView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [isVehicleConfigured, setIsVehicleConfigured] = useState(hasConfiguredVehicle);
 
   // Persistent Theme State (Claro / Escuro)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -82,10 +86,15 @@ export default function App() {
   // Initialize Firebase Auth & Real-Time Listeners (Spark Free Tier)
   useEffect(() => {
     const dataUnsubscribers: Array<() => void> = [];
-    const unsubscribeAuth = initFirebaseAuth(() => {
-      seedInitialDataToFirestore(vehicle, logs, reminders, sharedUsers);
+    const unsubscribeAuth = initFirebaseAuth(async () => {
+      await removeLegacyDemoDataFromFirestore();
+      if (hasConfiguredVehicle()) {
+        seedInitialDataToFirestore(vehicle, logs, reminders, sharedUsers);
+      }
       dataUnsubscribers.push(
-        subscribeVehicleFromFirestore((v) => setVehicle(v)),
+        subscribeVehicleFromFirestore((v) => {
+          if (v.id !== 'veh-001') setVehicle(v);
+        }),
         subscribeLogsFromFirestore((l) => setLogs(l)),
         subscribeRemindersFromFirestore((r) => setReminders(r)),
         subscribeSharedUsersFromFirestore((u) => setSharedUsers(u)),
@@ -186,11 +195,28 @@ export default function App() {
     generateVehiclePdfReport(vehicle, logs, reminders, isBuyerMode);
   };
 
+  const handleVehicleSetup = (configuredVehicle: Vehicle) => {
+    setVehicle(configuredVehicle);
+    setLogs([]);
+    setReminders([]);
+    setSharedUsers([]);
+    saveVehicle(configuredVehicle);
+    saveLogs([]);
+    saveReminders([]);
+    saveSharedUsers([]);
+    saveVehicleToFirestore(configuredVehicle);
+    setIsVehicleConfigured(true);
+  };
+
   // Compute reminders that reached 90%+ limit of KM
   const dueRemindersAt90 = useMemo(
     () => getDueRemindersAt90Percent(reminders, vehicle.currentOdometer),
     [reminders, vehicle.currentOdometer]
   );
+
+  if (!isVehicleConfigured) {
+    return <VehicleSetupView onComplete={handleVehicleSetup} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
