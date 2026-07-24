@@ -1,0 +1,6 @@
+{
+  "name": "Gestão Veicular & Passaporte Digital",
+  "description": "Sistema PWA completo para monitoramento de manutenções preventivas, custos futuros, histórico de peças, lembretes por KM, passaporte para revenda, relatórios em PDF, gestão compartilhada e gerador de PRD & Arquitetura.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

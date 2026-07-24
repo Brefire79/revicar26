@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "vehicles": {
+      "title": "vehicles",
+      "description": "Vehicle data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "number" },
+        "currentOdometer": { "type": "number" },
+        "averageDailyKm": { "type": "number" },
+        "licensePlate": { "type": "string" },
+        "vin": { "type": "string" },
+        "ownerName": { "type": "string text" }
+      },
+      "required": ["id", "name", "make", "model", "year", "currentOdometer"]
+    },
+    "maintenance_logs": {
+      "title": "maintenance_logs",
+      "description": "Maintenance history records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "date": { "type": "string" },
+        "odometerKm": { "type": "number text" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "totalCost": { "type": "number" }
+      },
+      "required": ["id", "date", "odometerKm", "title", "category", "totalCost"]
+    },
+    "reminders": {
+      "title": "reminders",
+      "description": "Maintenance reminder rules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "intervalKm": { "type": "number" },
+        "targetKm": { "type": "number" }
+      },
+      "required": ["id", "title", "category", "intervalKm", "targetKm"]
+    }
+  }
+}
