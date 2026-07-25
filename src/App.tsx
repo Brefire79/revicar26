@@ -15,6 +15,7 @@ import {
 } from './lib/storage';
 import {
   initFirebaseAuth,
+  connectGoogleAccount,
   seedInitialDataToFirestore,
   subscribeVehicleFromFirestore,
   subscribeLogsFromFirestore,
@@ -45,6 +46,8 @@ import { VehicleSetupView } from './components/VehicleSetupView';
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isVehicleConfigured, setIsVehicleConfigured] = useState(hasConfiguredVehicle);
+  const [isAnonymousUser, setIsAnonymousUser] = useState(true);
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
 
   // Persistent Theme State (Claro / Escuro)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -72,6 +75,19 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const handleConnectGoogle = async () => {
+    setIsConnectingGoogle(true);
+    try {
+      const user = await connectGoogleAccount();
+      setIsAnonymousUser(user.isAnonymous);
+    } catch (error) {
+      console.error('Google account connection error:', error);
+      window.alert('Não foi possível conectar ao Google. Tente novamente.');
+    } finally {
+      setIsConnectingGoogle(false);
+    }
+  };
+
   // State initialized from local storage or default mocks
   const [vehicle, setVehicle] = useState<Vehicle>(getStoredVehicle);
   const [logs, setLogs] = useState<MaintenanceLog[]>(getStoredLogs);
@@ -86,14 +102,19 @@ export default function App() {
   // Initialize Firebase Auth & Real-Time Listeners (Spark Free Tier)
   useEffect(() => {
     const dataUnsubscribers: Array<() => void> = [];
-    const unsubscribeAuth = initFirebaseAuth(async () => {
+    const unsubscribeAuth = initFirebaseAuth(async (user) => {
+      setIsAnonymousUser(user.isAnonymous);
+      dataUnsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
       await removeLegacyDemoDataFromFirestore();
       if (hasConfiguredVehicle()) {
         seedInitialDataToFirestore(vehicle, logs, reminders, sharedUsers);
       }
       dataUnsubscribers.push(
         subscribeVehicleFromFirestore((v) => {
-          if (v.id !== 'veh-001') setVehicle(v);
+          if (v.id !== 'veh-001') {
+            setVehicle(v);
+            setIsVehicleConfigured(true);
+          }
         }),
         subscribeLogsFromFirestore((l) => setLogs(l)),
         subscribeRemindersFromFirestore((r) => setReminders(r)),
@@ -227,7 +248,10 @@ export default function App() {
         vehicle={vehicle}
         theme={theme}
         dueReminders={dueRemindersAt90}
+        isAnonymousUser={isAnonymousUser}
+        isConnectingGoogle={isConnectingGoogle}
         onToggleTheme={handleToggleTheme}
+        onConnectGoogle={handleConnectGoogle}
         onOpenOdometerModal={() => setIsOdometerModalOpen(true)}
         onOpenAddLogModal={() => setIsAddLogModalOpen(true)}
       />

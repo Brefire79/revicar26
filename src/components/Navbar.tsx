@@ -15,7 +15,9 @@ import {
   Moon,
   Bell,
   AlertTriangle,
-  ChevronRight
+  ChevronRight,
+  Cloud,
+  LogIn
 } from 'lucide-react';
 import { Vehicle } from '../types';
 import { DueReminderInfo } from './MaintenanceAlertToast';
@@ -26,7 +28,10 @@ interface NavbarProps {
   vehicle: Vehicle;
   theme: 'dark' | 'light';
   dueReminders?: DueReminderInfo[];
+  isAnonymousUser: boolean;
+  isConnectingGoogle: boolean;
   onToggleTheme: () => void;
+  onConnectGoogle: () => void;
   onOpenOdometerModal: () => void;
   onOpenAddLogModal: () => void;
 }
@@ -37,7 +42,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   vehicle,
   theme,
   dueReminders = [],
+  isAnonymousUser,
+  isConnectingGoogle,
   onToggleTheme,
+  onConnectGoogle,
   onOpenOdometerModal,
   onOpenAddLogModal,
 }) => {
@@ -94,6 +102,28 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Actions & Status */}
           <div className="flex items-center space-x-2">
+            {isAnonymousUser ? (
+              <button
+                onClick={onConnectGoogle}
+                disabled={isConnectingGoogle}
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-blue-500/50 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-60 transition-colors"
+                title="Conectar ao Google para sincronizar entre aparelhos"
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="hidden lg:inline text-xs font-semibold">
+                  {isConnectingGoogle ? 'Conectando...' : 'Conectar Google'}
+                </span>
+              </button>
+            ) : (
+              <div
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                title="Dados sincronizados com sua conta Google"
+              >
+                <Cloud className="w-4 h-4" />
+                <span className="hidden lg:inline text-xs font-semibold">Google sincronizado</span>
+              </div>
+            )}
+
             {/* Notification Bell with Badge */}
             <div className="relative">
               <button

@@ -12,7 +12,16 @@ import {
   writeBatch,
   getFirestore
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously, onAuthStateChanged, User } from 'firebase/auth';
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  linkWithPopup,
+  signInWithCredential,
+  signInWithPopup,
+  User,
+} from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Vehicle, MaintenanceLog, ReminderRule, SharedUser } from '../types';
 
@@ -45,6 +54,7 @@ export const auth = getAuth(app);
 
 // Keep track of current user
 let currentUser: User | null = null;
+let googleSignInInProgress = false;
 const LEGACY_DEMO_IDS = {
   logs: ['log-101', 'log-102', 'log-103'],
   reminders: ['rem-01', 'rem-02', 'rem-03', 'rem-04'],
@@ -57,13 +67,42 @@ export const initFirebaseAuth = (onUserReady?: (user: User) => void) => {
     if (user) {
       currentUser = user;
       if (onUserReady) onUserReady(user);
-    } else {
+    } else if (!googleSignInInProgress) {
       signInAnonymously(auth)
         .catch((err) => {
           console.warn('Firebase Auth anonymous login error:', err);
         });
     }
   });
+};
+
+export const connectGoogleAccount = async () => {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  googleSignInInProgress = true;
+
+  try {
+    if (auth.currentUser?.isAnonymous) {
+      try {
+        return (await linkWithPopup(auth.currentUser, provider)).user;
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        const credential = GoogleAuthProvider.credentialFromError(error);
+        const accountAlreadyLinked =
+          code === 'auth/credential-already-in-use' ||
+          code === 'auth/account-exists-with-different-credential';
+
+        if (credential && accountAlreadyLinked) {
+          return (await signInWithCredential(auth, credential)).user;
+        }
+        throw error;
+      }
+    }
+
+    return (await signInWithPopup(auth, provider)).user;
+  } finally {
+    googleSignInInProgress = false;
+  }
 };
 
 // Firestore Collection References
@@ -152,10 +191,8 @@ export const subscribeLogsFromFirestore = (onUpdate: (logs: MaintenanceLog[]) =>
     querySnap.forEach((docSnap) => {
       logsList.push(docSnap.data() as MaintenanceLog);
     });
-    if (logsList.length > 0) {
-      logsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      onUpdate(logsList);
-    }
+    logsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    onUpdate(logsList);
   }, (err) => {
     console.warn('Firestore logs snapshot error:', err);
   });
@@ -200,10 +237,8 @@ export const subscribeRemindersFromFirestore = (onUpdate: (reminders: ReminderRu
     querySnap.forEach((docSnap) => {
       list.push(docSnap.data() as ReminderRule);
     });
-    if (list.length > 0) {
-      list.sort((a, b) => a.targetKm - b.targetKm);
-      onUpdate(list);
-    }
+    list.sort((a, b) => a.targetKm - b.targetKm);
+    onUpdate(list);
   }, (err) => {
     console.warn('Firestore reminders snapshot error:', err);
   });
@@ -235,9 +270,7 @@ export const subscribeSharedUsersFromFirestore = (onUpdate: (users: SharedUser[]
     querySnap.forEach((docSnap) => {
       list.push(docSnap.data() as SharedUser);
     });
-    if (list.length > 0) {
-      onUpdate(list);
-    }
+    onUpdate(list);
   }, (err) => {
     console.warn('Firestore shared users snapshot error:', err);
   });
