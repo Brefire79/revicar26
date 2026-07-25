@@ -17,8 +17,18 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(
-            (reg) => console.log('SW registrado com sucesso:', reg.scope),
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
+          });
+
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(
+            (reg) => {
+              console.log('SW registrado com sucesso:', reg.scope);
+              reg.update().catch((err) => console.warn('Falha ao verificar atualização do PWA:', err));
+            },
             (err) => console.log('Erro ao registrar SW:', err)
           );
         });
@@ -26,4 +36,3 @@
     </script>
   </body>
 </html>
-
