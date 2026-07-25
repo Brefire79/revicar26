@@ -79,6 +79,9 @@ const userCollection = (name: string) => collection(userDoc(), name);
 const userItemDoc = (collectionName: string, id: string) =>
   doc(userDoc(), collectionName, id);
 
+const sanitizeForFirestore = <T>(value: T): T =>
+  JSON.parse(JSON.stringify(value)) as T;
+
 export const removeLegacyDemoDataFromFirestore = async () => {
   try {
     const batch = writeBatch(db);
@@ -101,7 +104,11 @@ export const removeLegacyDemoDataFromFirestore = async () => {
 export const saveVehicleToFirestore = async (vehicle: Vehicle) => {
   try {
     const vehicleRef = userItemDoc('vehicles', VEHICLE_DOC_ID);
-    await setDoc(vehicleRef, { ...vehicle, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(
+      vehicleRef,
+      sanitizeForFirestore({ ...vehicle, updatedAt: new Date().toISOString() }),
+      { merge: true },
+    );
   } catch (err) {
     console.warn('Firestore save vehicle error:', err);
   }
@@ -123,7 +130,7 @@ export const subscribeVehicleFromFirestore = (onUpdate: (vehicle: Vehicle) => vo
 export const saveLogToFirestore = async (log: MaintenanceLog) => {
   try {
     const logRef = userItemDoc('maintenance_logs', log.id);
-    await setDoc(logRef, { ...log, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(logRef, sanitizeForFirestore({ ...log, updatedAt: new Date().toISOString() }), { merge: true });
   } catch (err) {
     console.warn('Firestore save log error:', err);
   }
@@ -158,7 +165,7 @@ export const subscribeLogsFromFirestore = (onUpdate: (logs: MaintenanceLog[]) =>
 export const saveReminderToFirestore = async (rem: ReminderRule) => {
   try {
     const remRef = userItemDoc('reminders', rem.id);
-    await setDoc(remRef, { ...rem, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(remRef, sanitizeForFirestore({ ...rem, updatedAt: new Date().toISOString() }), { merge: true });
   } catch (err) {
     console.warn('Firestore save reminder error:', err);
   }
@@ -169,7 +176,7 @@ export const saveMultipleRemindersToFirestore = async (reminders: ReminderRule[]
     const batch = writeBatch(db);
     reminders.forEach((rem) => {
       const remRef = userItemDoc('reminders', rem.id);
-      batch.set(remRef, { ...rem, updatedAt: new Date().toISOString() }, { merge: true });
+      batch.set(remRef, sanitizeForFirestore({ ...rem, updatedAt: new Date().toISOString() }), { merge: true });
     });
     await batch.commit();
   } catch (err) {
@@ -206,7 +213,7 @@ export const subscribeRemindersFromFirestore = (onUpdate: (reminders: ReminderRu
 export const saveSharedUserToFirestore = async (user: SharedUser) => {
   try {
     const uRef = userItemDoc('shared_users', user.id);
-    await setDoc(uRef, { ...user, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(uRef, sanitizeForFirestore({ ...user, updatedAt: new Date().toISOString() }), { merge: true });
   } catch (err) {
     console.warn('Firestore save shared user error:', err);
   }
@@ -248,17 +255,17 @@ export const seedInitialDataToFirestore = async (
     const vehicleSnap = await getDoc(vehicleRef);
 
     if (!vehicleSnap.exists()) {
-      await setDoc(vehicleRef, { ...initialVehicle, createdAt: new Date().toISOString() });
+      await setDoc(vehicleRef, sanitizeForFirestore({ ...initialVehicle, createdAt: new Date().toISOString() }));
       
       const batch = writeBatch(db);
       initialLogs.forEach((log) => {
-        batch.set(userItemDoc('maintenance_logs', log.id), { ...log, createdAt: new Date().toISOString() });
+        batch.set(userItemDoc('maintenance_logs', log.id), sanitizeForFirestore({ ...log, createdAt: new Date().toISOString() }));
       });
       initialReminders.forEach((rem) => {
-        batch.set(userItemDoc('reminders', rem.id), { ...rem, createdAt: new Date().toISOString() });
+        batch.set(userItemDoc('reminders', rem.id), sanitizeForFirestore({ ...rem, createdAt: new Date().toISOString() }));
       });
       initialSharedUsers.forEach((u) => {
-        batch.set(userItemDoc('shared_users', u.id), { ...u, createdAt: new Date().toISOString() });
+        batch.set(userItemDoc('shared_users', u.id), sanitizeForFirestore({ ...u, createdAt: new Date().toISOString() }));
       });
 
       await batch.commit();
